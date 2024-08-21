@@ -110,19 +110,31 @@ blogRouter.use("/*", async (c, next) => {
   }
 });
 
-blogRouter.get("/allPosts", async (c) => {
+blogRouter.get("/allPosts/:tags", async (c) => {
   try {
     const prisma = new PrismaClient({
       datasourceUrl: c.env.DATABASE_URL,
     }).$extends(withAccelerate());
+    
+    const tagsParam = c.req.param("tags");
+    console.log(tagsParam,"tags unfiltered");
+    const selectedTags = tagsParam.length > 0 ? tagsParam.toLowerCase().split(',') : [];
+    // const selectedTags:any = [];
+    
+    console.log(selectedTags);
 
     const posts = await prisma.post.findMany({
+      where: selectedTags.length > 0 && selectedTags[0]!="nofilter" ? {
+        tags: {
+        hasEvery: selectedTags,
+        },
+      } : {}, 
       select: {
         id: true,
         title: true,
         content: true,
         publishedAt: true,
-        tags:true,
+        tags: true,
         author: {
           select: {
             id: true,
@@ -132,7 +144,8 @@ blogRouter.get("/allPosts", async (c) => {
         },
       },
     });
-
+    console.log(posts.length);
+    
     if (!posts) {
       c.status(400);
       return c.json({
@@ -149,6 +162,7 @@ blogRouter.get("/allPosts", async (c) => {
     return c.json({ message: "Error fetching posts" });
   }
 });
+
 
 blogRouter.post("/post", async (c) => {
   try {
@@ -285,3 +299,4 @@ blogRouter.delete("/vote/:id", async (c) => {
     deletedVote,
   });
 });
+
