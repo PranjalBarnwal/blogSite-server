@@ -116,17 +116,16 @@ blogRouter.get("/allPosts/:tags/:searchQuery", async (c) => {
       datasourceUrl: c.env.DATABASE_URL,
     }).$extends(withAccelerate());
     
-    const tagsParam = c.req.param("tags");
-    const searchParam = c.req.param("searchQuery");
-    const selectedTags = tagsParam.length > 0 ? tagsParam.toLowerCase().split(',') : [];
-    
+    const tagsParam = c.req.param("tags") || "nofilter";  
+    const searchParam = c.req.param("searchQuery") || "noquery";  
+    const selectedTags = tagsParam !== "nofilter" ? tagsParam.toLowerCase().split(',') : [];
+
     console.log(selectedTags, searchParam);
-    console.log(  searchParam !== "noquery");
 
     const posts = await prisma.post.findMany({
       where: {
         AND: [
-          selectedTags.length > 0 && selectedTags[0] !== "nofilter" ? {
+          selectedTags.length > 0 ? {
             tags: {
               hasEvery: selectedTags,
             },
@@ -183,7 +182,6 @@ blogRouter.get("/allPosts/:tags/:searchQuery", async (c) => {
     return c.json({ message: "Error fetching posts" });
   }
 });
-
 
 
 blogRouter.post("/post", async (c) => {
