@@ -110,25 +110,47 @@ blogRouter.use("/*", async (c, next) => {
   }
 });
 
-blogRouter.get("/allPosts/:tags", async (c) => {
+blogRouter.get("/allPosts/:tags/:searchQuery", async (c) => {
   try {
     const prisma = new PrismaClient({
       datasourceUrl: c.env.DATABASE_URL,
     }).$extends(withAccelerate());
     
     const tagsParam = c.req.param("tags");
-    console.log(tagsParam,"tags unfiltered");
+    const searchParam = c.req.param("searchQuery");
     const selectedTags = tagsParam.length > 0 ? tagsParam.toLowerCase().split(',') : [];
-    // const selectedTags:any = [];
     
-    console.log(selectedTags);
+    console.log(selectedTags, searchParam);
+    console.log(  searchParam !== "noquery");
 
     const posts = await prisma.post.findMany({
-      where: selectedTags.length > 0 && selectedTags[0]!="nofilter" ? {
-        tags: {
-        hasEvery: selectedTags,
-        },
-      } : {}, 
+      where: {
+        AND: [
+          selectedTags.length > 0 && selectedTags[0] !== "nofilter" ? {
+            tags: {
+              hasEvery: selectedTags,
+            },
+          } : {},
+          searchParam !== "noquery" ? {
+            OR: [
+              {
+                title: {
+                  contains: searchParam,
+                  mode: 'insensitive', 
+                },
+              },
+              {
+                author: {
+                  username: {
+                    contains: searchParam,
+                    mode: 'insensitive',
+                  },
+                },
+              },
+            ],
+          } : {},
+        ],
+      },
       select: {
         id: true,
         title: true,
@@ -144,9 +166,8 @@ blogRouter.get("/allPosts/:tags", async (c) => {
         },
       },
     });
-    console.log(posts.length);
-    
-    if (!posts) {
+
+    if (!posts || posts.length === 0) {
       c.status(400);
       return c.json({
         error: "Unable to fetch posts",
@@ -162,6 +183,7 @@ blogRouter.get("/allPosts/:tags", async (c) => {
     return c.json({ message: "Error fetching posts" });
   }
 });
+
 
 
 blogRouter.post("/post", async (c) => {
